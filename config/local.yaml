@@ -4,9 +4,10 @@ env: "local" #dev, prod
 db:
   username: "alex"
   host: "localhost"
-  port: "5432"
+  pg_port: "5432"
   dbname: "atanika"
-  sslmode: ""
+  sslmode: "disable"
+  password: "secret"
 
 http:
   port: "8080"

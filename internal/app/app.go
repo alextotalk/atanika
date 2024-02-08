@@ -3,9 +3,10 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/alextotalk/atanika/internal/config"
 	"github.com/alextotalk/atanika/internal/server"
-	_ "github.com/lib/pq"
+	"github.com/alextotalk/atanika/internal/storage/pg"
 	"log/slog"
 	"net/http"
 	"os"
@@ -20,10 +21,12 @@ const (
 	envProd  = "prod"
 )
 
-// Run initializes whole application.
+// Run initializes the entire application.
 func Run() {
+	// Load configuration
 	cfg := config.MustLoad()
 
+	// Set up logger
 	log := setupLogger(cfg.Env)
 	log.Info(
 		"starting url-shortener",
@@ -32,9 +35,26 @@ func Run() {
 	)
 	log.Debug("debug messages are enabled")
 
-	// HTTP Server
+	// Initialize database
+	db, err := pg.New(pg.Config{
+		Host:     cfg.PgHost,
+		Port:     cfg.PgPort,
+		Username: cfg.PgUser,
+		DBName:   cfg.PgName,
+		SSLMode:  cfg.SSLMode,
+		Password: cfg.PgPassword,
+	})
+	fmt.Printf("db: %v\n", db)
+	_ = db
+	if err != nil {
+		log.Error("Failed to initialize database: %s", err)
+		os.Exit(1)
+	}
+
+	// Initialize HTTP server
 	srv := server.NewServer()
 
+	// Start HTTP server
 	go func() {
 		if err := srv.Run(); !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Error occurred while running http server: %s\n", err.Error())
@@ -54,10 +74,14 @@ func Run() {
 	ctx, shutdown := context.WithTimeout(context.Background(), timeout)
 	defer shutdown()
 
+	// Stop the server gracefully
 	if err := srv.Stop(ctx); err != nil {
 		slog.Error("Failed to stop server: %v", err)
 	}
 
+	if err := db.Close(); err != nil {
+		slog.Error("Failed to close database: %v", err)
+	}
 	//if err := mongoClient.Disconnect(context.Background()); err != nil {
 	//	slog.Error(err.Error())
 	//}
