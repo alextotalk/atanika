@@ -1,8 +1,9 @@
 package pg
 
 import (
-	"fmt"
-	"github.com/jmoiron/sqlx"
+	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"log"
 )
 
 type Config struct {
@@ -14,16 +15,30 @@ type Config struct {
 	SSLMode  string
 }
 
-func New(cfg Config) (*sqlx.DB, error) {
+func New(cfg Config) (*pgxpool.Pool, error) {
 
-	connString := fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.Username, cfg.DBName, cfg.Password, cfg.SSLMode)
+	dbURL := "postgres://" + cfg.Username + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port + "/" + cfg.DBName + "?sslmode=" + cfg.SSLMode
 
-	db, err := sqlx.Open("postgres", connString)
+	// Pool configuration
+	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
-		op := "storage.pg.New"
-		return nil, fmt.Errorf("%s: %w", op, err)
+		log.Fatalf("Unable to parse config: %v\n", err)
+	}
+	//Tune pool settings
+	config.MaxConnLifetime = 0 // Connections are not closed based on age
+	config.MaxConnIdleTime = 0 // Connections are not closed based on idle time
+	config.MaxConns = 10       // Adjust based on your workload
+
+	// Create a new pool
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
 
-	return db, nil
+	// Check connection
+	if err := pool.Ping(context.Background()); err != nil {
+		log.Fatalf("Unable to ping database: %v\n", err)
+	}
+
+	return pool, nil
 }

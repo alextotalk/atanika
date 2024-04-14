@@ -3,10 +3,13 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/alextotalk/atanika/internal/config"
+	"github.com/alextotalk/atanika/internal/handler"
 	"github.com/alextotalk/atanika/internal/server"
+	"github.com/alextotalk/atanika/internal/service"
+	"github.com/alextotalk/atanika/internal/storage"
 	"github.com/alextotalk/atanika/internal/storage/pg"
+	_ "github.com/jackc/pgx/v5"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,14 +32,13 @@ func Run() {
 	// Set up logger
 	log := setupLogger(cfg.Env)
 	log.Info(
-		"starting url-shortener",
+		"starting atanika",
 		slog.String("env", cfg.Env),
-		slog.String("version", "123"),
 	)
 	log.Debug("debug messages are enabled")
 
 	// Initialize database
-	db, err := pg.New(pg.Config{
+	pgDB, err := pg.New(pg.Config{
 		Host:     cfg.PgHost,
 		Port:     cfg.PgPort,
 		Username: cfg.PgUser,
@@ -44,15 +46,22 @@ func Run() {
 		SSLMode:  cfg.SSLMode,
 		Password: cfg.PgPassword,
 	})
-	fmt.Printf("db: %v\n", db)
-	_ = db
 	if err != nil {
 		log.Error("Failed to initialize database: %s", err)
 		os.Exit(1)
 	}
+	defer pgDB.Close()
+
+	// NewRepository creates a new repository using the provided pgDB connection.
+	// It returns the created repository.
+	repos := storage.NewRepository(pgDB)
+
+	services := service.NewService(repos)
+
+	handlers := handler.NewHandler(services)
 
 	// Initialize HTTP server
-	srv := server.NewServer()
+	srv := server.NewServer(handlers)
 
 	// Start HTTP server
 	go func() {
@@ -61,7 +70,7 @@ func Run() {
 		}
 	}()
 
-	slog.Info("Server started on port: %s", cfg.Http.Port)
+	slog.Info("Server started on port:", cfg.Http.Port, "successful")
 
 	// Graceful Shutdown
 	quit := make(chan os.Signal, 1)
@@ -76,15 +85,8 @@ func Run() {
 
 	// Stop the server gracefully
 	if err := srv.Stop(ctx); err != nil {
-		slog.Error("Failed to stop server: %v", err)
+		log.Error("Failed to stop server: %v", err)
 	}
-
-	if err := db.Close(); err != nil {
-		slog.Error("Failed to close database: %v", err)
-	}
-	//if err := mongoClient.Disconnect(context.Background()); err != nil {
-	//	slog.Error(err.Error())
-	//}
 
 }
 func setupLogger(env string) *slog.Logger {
