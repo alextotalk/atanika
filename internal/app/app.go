@@ -61,7 +61,7 @@ func Run() {
 	handlers := handler.NewHandler(services)
 
 	// Initialize HTTP server
-	srv := server.NewServer(handlers)
+	srv := server.NewServer(handlers.NewRouter()) // Створення Server з екземпляром Echo
 
 	// Start HTTP server
 	go func() {

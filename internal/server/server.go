@@ -7,24 +7,17 @@ import (
 )
 
 type Server struct {
-	httpServer *http.Server
+	e *echo.Echo // Використовуємо echo.Echo безпосередньо
 }
 
 func NewServer(handler *echo.Echo) *Server {
-	const port = "8080" // Константа для порту
-
-	return &Server{
-		httpServer: &http.Server{
-			Addr:    ":" + port,
-			Handler: handler, // Використання Router як Handler
-		},
-	}
+	return &Server{e: handler} // Призначаємо наданий екземпляр Echo
 }
 
 func (s *Server) Run() error {
-	return s.httpServer.ListenAndServe()
+	return s.e.StartServer(&http.Server{Addr: ":8080"}) // Запускаємо сервер Echo
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
+	return s.e.Shutdown(ctx)
 }
