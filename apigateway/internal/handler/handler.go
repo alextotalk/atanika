@@ -16,7 +16,7 @@ func NewHandler(services *service.Service) *Handler {
 	return &Handler{services: services}
 }
 
-var tpl = template.Must(template.ParseFiles("templates/index.html"))
+var tpl = template.Must(template.ParseFiles("a"))
 
 func indexHandler(c echo.Context) error {
 	// Pass any necessary data to the template (optional)
