@@ -5,7 +5,6 @@ import (
 	"github.com/alextotalk/atanika/internal/service"
 	"github.com/labstack/echo/v4"
 	"html/template"
-	"net/http"
 )
 
 type Handler struct {
@@ -16,7 +15,7 @@ func NewHandler(services *service.Service) *Handler {
 	return &Handler{services: services}
 }
 
-var tpl = template.Must(template.ParseFiles("a"))
+var tpl = template.Must(template.ParseFiles("templates/index.html"))
 
 func indexHandler(c echo.Context) error {
 	// Pass any necessary data to the template (optional)
@@ -32,8 +31,8 @@ func indexHandler(c echo.Context) error {
 }
 
 func auth(c echo.Context) error {
-
-	return c.String(http.StatusOK, "Authorized")
+	var tpl = template.Must(template.ParseFiles("templates/auth.html"))
+	return tpl.Execute(c.Response().Writer, c.Request())
 }
 
 func (h *Handler) NewRouter() *echo.Echo {

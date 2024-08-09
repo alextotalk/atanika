@@ -31,6 +31,7 @@ func Run() {
 	cfg := config.MustLoad()
 
 	// Set up logger
+
 	log := setupLogger(cfg.Env)
 	log.Info(
 		"starting atanika",
